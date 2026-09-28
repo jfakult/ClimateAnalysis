@@ -1,6 +1,6 @@
 # Climate Analysis
 
-**[fakult.net/weather2](https://fakult.net/weather2)**
+**<a href="https://fakult.net/weather2" target="_blank" rel="noopener">fakult.net/weather2</a>**
 
 An interactive map of ~6,500 weather stations worldwide, scored on how pleasant
 the weather actually is to be outside in, computed directly from 16 years of
