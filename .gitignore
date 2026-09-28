@@ -1,0 +1,25 @@
+# Generated site data (rebuilt by the compute pipeline -- see compute/README.md)
+/data/details
+
+# Raw NOAA input (huge; pulled with compute/pull_isd_data.sh) and everything the
+# pipeline caches/generates from it. isd-history.csv and country-list.txt are small
+# NOAA reference files the pipeline reads directly, so those ARE committed.
+/compute/isd-raw/
+/compute/cache/
+/compute/logs/
+
+# Vendored AWS CLI installer (a local tool install, not project source)
+/compute/aws/
+/compute/awscliv2.zip
+
+# Built C libraries (compiled on first run) and Python bytecode
+*.so
+__pycache__/
+*.pyc
+
+# Old planning notes, kept locally but not worth publishing
+/compute/archive/
+
+# Editor/OS noise
+.DS_Store
+*.swp

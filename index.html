@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>weather2 — Climate Station Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  font-size: 14px;
+  width: 240px;
+}
+
+.panel-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.panel-body {
+  padding: 0 12px 12px 12px;
+}
+
+.panel.collapsed .panel-body {
+  display: none;
+}
+
+#station-count {
+  font-size: 11px;
+  color: #666;
+  font-weight: 400;
+}
+
+.select-row, .check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #888;
+  color: #555;
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  cursor: help;
+  user-select: none;
+}
+
+.info-icon:hover, .info-icon:focus {
+  background: #555;
+  color: #fff;
+  outline: none;
+}
+
+.info-tip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+}
+
+.info-icon:hover + .info-tip, .info-icon:focus + .info-tip {
+  display: block;
+}
+
+.link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #555;
+  font-size: 13px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.link-icon:hover { color: #1a4fa0; }
+
+.metric-info-box {
+  position: relative;
+  margin-top: 8px;
+  padding: 8px 26px 8px 10px;
+  background: #f1f5fb;
+  border: 1px solid #dde6f3;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.metric-info-box.collapsed { padding: 4px 26px 4px 10px; }
+.metric-info-box.collapsed .mi-content { display: none; }
+
+.mi-toggle {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #99a9c2;
+  border-radius: 3px;
+  background: #fff;
+  color: #556;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mi-toggle:hover { background: #e4edf9; }
+
+.mi-summary { display: block; margin-bottom: 4px; }
+.mi-params { margin: 0 0 4px; padding-left: 16px; }
+.mi-params li { margin: 1px 0; }
+.mi-foot { display: block; color: #667; margin-top: 4px; }
+
+.mv-good { color: #1e7d34; font-weight: 700; }
+.mv-bad { color: #b3261e; font-weight: 700; }
+
+#metric-select {
+  width: 100%;
+  padding: 6px;
+  margin-top: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.legend-title-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.legend-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #333;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.check-row label {
+  cursor: pointer;
+}
+
+.status-note {
+  font-size: 11px;
+  color: #777;
+  margin-top: 2px;
+  min-height: 13px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: stretch;
+}
+
+.panel-head .panel-toggle {
+  flex: 1;
+  min-width: 0;
+}
+
+.about-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 9px 10px 9px 0;
+  border-radius: 50%;
+  border: 1px solid #99a9c2;
+  background: #fff;
+  color: #556;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.about-btn:hover { background: #e4edf9; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop[hidden] { display: none; }
+
+.modal {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  padding: 20px 22px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.modal h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.modal p { margin: 0 0 12px; }
+.modal p:last-child { margin-bottom: 0; }
+.modal a { color: #1a4fa0; }
+
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.modal-close:hover { color: #000; }
+
+.range {
+  position: relative;
+  height: 22px;
+  margin-top: 6px;
+}
+
+.range-track {
+  position: absolute;
+  left: 7px;   /* half a thumb: the track spans the thumb-center travel */
+  right: 7px;
+  top: 6px;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #e3e6ea;
+}
+
+.range-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.range-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.range-dim-lo { left: 0; }
+.range-dim-hi { right: 0; }
+
+.range-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: none;
+  pointer-events: none;   /* only the thumbs are grabbable, so the two inputs can overlap */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range-input::-webkit-slider-runnable-track { background: transparent; height: 22px; }
+.range-input::-moz-range-track { background: transparent; height: 22px; }
+
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: 14px;
+  height: 22px;
+  border-radius: 4px;
+  background: #fff;
+  border: 2px solid #444;
+  cursor: ew-resize;
+}
+
+.range-input::-moz-range-thumb {
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: 14px;
+  height: 22px;
+  border-radius: 4px;
+  background: #fff;
+  border: 2px solid #444;
+  cursor: ew-resize;
+}
+
+.range-input:focus-visible::-webkit-slider-thumb { outline: 2px solid #1a73e8; }
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #444;
+  margin-top: 2px;
+}
+
+.range-reset {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.station-popup {
+  min-width: 210px;
+  font-size: 13px;
+}
+
+.station-name {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.station-sub {
+  color: #666;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.metric-row {
+  margin-bottom: 8px;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: #444;
+  margin-bottom: 2px;
+}
+
+.metric-bar-track {
+  background: #e0e0e0;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.metric-value {
+  font-size: 11px;
+  color: #333;
+  text-align: right;
+  margin-top: 1px;
+}
+
+.detail-btn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #f1f5fb;
+  border: 1px solid #c9d6ea;
+  border-radius: 6px;
+  color: #1a4fa0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-btn:hover { background: #e4edf9; }
+
+#detail-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1200;
+  width: min(680px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 16px 18px 14px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  color: #222;
+}
+
+#detail-panel[hidden] { display: none; }
+
+.dp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dp-name { font-size: 17px; font-weight: 700; }
+.dp-sub { color: #777; font-size: 12px; margin-top: 2px; }
+.dp-loading { color: #666; }
+
+.dp-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.dp-close:hover { color: #000; }
+
+.dp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 14px 0 12px;
+}
+
+.dp-streaks {
+  margin-bottom: 10px;
+}
+
+.dp-stat {
+  background: #f6f7f9;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.dp-stat-value { font-size: 20px; font-weight: 700; }
+.dp-stat-label { font-size: 11px; color: #666; margin-top: 1px; }
+.dp-stat-label span { color: #999; }
+
+.dp-notes {
+  margin: 0 0 12px;
+  padding: 10px 12px 10px 28px;
+  background: #fff8e1;
+  border: 1px solid #f3e2a0;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.dp-notes li + li { margin-top: 4px; }
+
+.dp-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #777;
+  margin: 4px 0 6px;
+}
+
+.dp-tablewrap { overflow-x: auto; }
+
+.dp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-table th, .dp-table td {
+  padding: 4px 5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dp-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  padding-bottom: 3px;
+}
+
+.dp-table thead .dp-group {
+  border-bottom: 1px solid #ddd;
+  color: #444;
+}
+
+.dp-table tbody th { font-weight: 700; text-align: left; }
+.dp-table td.dp-num { text-align: right; }
+.dp-reports { line-height: 1.15; }
+.dp-dim { font-size: 10px; color: #888; }
+
+.dp-row-in { background: #f3faf4; }
+.dp-row-out { color: #555; }
+.dp-table tbody tr > :first-child { border-radius: 6px 0 0 6px; }
+.dp-table tbody tr > :last-child { border-radius: 0 6px 6px 0; }
+
+.dp-cell {
+  background-image: linear-gradient(to right, var(--c) var(--p), transparent var(--p));
+  min-width: 40px;
+}
+
+.dp-hi { --c: rgba(67, 160, 71, 0.38); }
+.dp-mid { --c: rgba(253, 216, 53, 0.55); }
+.dp-lo { --c: rgba(229, 57, 53, 0.35); }
+.dp-fail { box-shadow: inset 0 0 0 2px rgba(229, 57, 53, 0.85); font-weight: 700; }
+
+.dp-result { text-align: left; white-space: nowrap; }
+.dp-excluded { color: #8a2b26; }
+
+.dp-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 4px;
+  border-radius: 10px;
+  background: #fde7e6;
+  color: #b3261e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #555;
+}
+
+.dp-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  background: var(--c);
+}
+
+.dp-foot { margin: 8px 0 0; font-size: 11px; color: #777; line-height: 1.4; }
+
+.dp-section-sub {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: #999;
+  margin-left: 6px;
+}
+
+.dp-charts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dp-chart {
+  background: #f6f7f9;
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+}
+
+.dp-chart-title { font-size: 12px; font-weight: 600; color: #333; }
+.dp-chart-title span { font-weight: 400; color: #999; }
+
+.dp-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0 2px;
+  overflow: visible;
+}
+
+.dp-chart-range {
+  display: flex;
+  justify-content: space-between;
+  min-height: 14px;
+  margin: 2px 0 0 6px;
+  font-size: 11px;
+  color: #666;
+}
+
+@media (max-width: 560px) {
+  .dp-stats { grid-template-columns: repeat(2, 1fr); }
+  .dp-charts { grid-template-columns: 1fr; }
+}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="settings-panel" class="panel">
+    <div class="panel-head">
+      <button id="settings-toggle" class="panel-toggle">
+        <span>⚙ Settings</span>
+        <span id="station-count"></span>
+      </button>
+      <button type="button" id="about-toggle" class="about-btn" title="About this data" aria-label="About this data">?</button>
+    </div>
+    <div class="panel-body">
+      <div class="select-row">
+        <label for="metric-select">Show:</label>
+      </div>
+      <select id="metric-select">
+        <option value="avg_score">Score</option>
+        <option value="avg_perfect_days">Outside Days / Year</option>
+        <option value="avg_indoor_days">Indoor Days / Year</option>
+        <option value="avg_gloomy_days">Gloomy Days / Year</option>
+        <option value="avg_net_days">Outside Days - Indoor Days</option>
+        <option value="avg_perfect_minus_gloom">Outside Days - Indoor Streaks</option>
+        <option value="perfect_indoor_ratio">Outside / Indoor Ratio</option>
+        <option value="avg_perfect_streaks">Outside Streaks / Year</option>
+        <option value="avg_gloom_streaks">Indoor Streaks / Year</option>
+        <option value="avg_vegetation">Vegetation</option>
+        <option value="seasonal_concentration">Seasonal Concentration</option>
+      </select>
+      <div class="metric-info-box" id="metric-info-box">
+        <button type="button" class="mi-toggle" id="metric-info-toggle" aria-label="Hide description" title="Hide description">&minus;</button>
+        <div class="mi-content" id="metric-info"></div>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="smooth-toggle">
+        <label for="smooth-toggle">Smooth between stations</label>
+        <span class="info-icon" tabindex="0" aria-describedby="smooth-info">i</span>
+        <div id="smooth-info" class="info-tip" role="tooltip">Fills in colors between stations over land, using a distance-weighted average of the nearest stations. It fades out where no station is within about 300 km. It is an estimate: mountains, coasts and lakes are not modeled.</div>
+      </div>
+      <div id="smooth-status" class="status-note"></div>
+      <div class="check-row">
+        <input type="checkbox" id="koppen-toggle">
+        <label for="koppen-toggle">Köppen climate zones</label>
+        <a class="link-icon" id="koppen-open-link" href="https://upload.wikimedia.org/wikipedia/commons/c/cd/Koppen-Geiger_Map_v2_World_1991%E2%80%932020.svg" target="_blank" rel="noopener" title="Open the full climate map image">&#8599;</a>
+        <span class="info-icon" tabindex="0" aria-describedby="koppen-info">i</span>
+        <div id="koppen-info" class="info-tip" role="tooltip">The Köppen−Geiger system groups climates by temperature and precipitation pattern into types like tropical, arid, temperate, continental (cold) and polar, with sub-types for seasonality (e.g. "Csa" = temperate, dry summer, hot summer). Data: <a href="https://doi.org/10.1038/sdata.2018.214" target="_blank" rel="noopener" style="color:#9cf;">Beck et al. 2018</a>, 0.5° resolution, CC BY 4.0.</div>
+      </div>
+      <div id="koppen-status" class="status-note"></div>
+      <div class="check-row">
+        <input type="checkbox" id="ndvi-toggle">
+        <label for="ndvi-toggle">Vegetation (satellite)</label>
+        <a class="link-icon" id="ndvi-open-link" href="https://zenodo.org/records/4305975" target="_blank" rel="noopener" title="Open the dataset page">&#8599;</a>
+        <span class="info-icon" tabindex="0" aria-describedby="ndvi-info">i</span>
+        <div id="ndvi-info" class="info-tip" role="tooltip">Average greenness of the land seen from space (NDVI: how much of the light plants reflect). Tan is bare ground, deep green is dense forest. This is the same data behind the Vegetation metric. Mean of monthly values, 2015&ndash;2019, at 0.1&deg;. Data: <a href="https://zenodo.org/records/4305975" target="_blank" rel="noopener" style="color:#9cf;">OpenGeoHub</a> from NOAA AVHRR and MODIS, CC BY 4.0. Irrigated farmland reads green too.</div>
+      </div>
+      <div id="ndvi-status" class="status-note"></div>
+      <div class="legend-title-row">
+        <span id="legend-title" class="legend-title"></span>
+        <span class="info-icon" tabindex="0" aria-describedby="filter-info">i</span>
+        <div id="filter-info" class="info-tip" role="tooltip">Drag the two handles to show only stations (and smoothed areas) whose value is inside the chosen range.</div>
+      </div>
+      <div id="range-slider"></div>
+    </div>
+  </div>
+
+  <div id="detail-panel" hidden></div>
+
+  <div id="about-backdrop" class="modal-backdrop" hidden>
+    <div id="about-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <button type="button" class="modal-close" id="about-close" aria-label="Close">&times;</button>
+      <h2 id="about-title">About this data</h2>
+      <p>Every number on this map comes from real weather stations, not a climate model: raw
+      hourly observations from NOAA's public <strong>Integrated Surface Database (ISD)</strong>,
+      2010&ndash;2025, processed directly into the metrics shown here (perfect/miserable
+      days, streaks, vegetation, and so on).</p>
+      <p>Station instrumentation and reporting frequency vary a lot &mdash; some report every
+      hour, others every few hours, and coverage gaps are common. Click any station and open
+      "Data details" to see exactly how much data it has, which years counted, and why.</p>
+      <p>
+        <a href="https://github.com/jfakult/ClimateAnalysis" target="_blank" rel="noopener">View the code on GitHub &#8599;</a><br>
+        <a href="https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database" target="_blank" rel="noopener">NOAA Integrated Surface Database &#8599;</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" crossorigin=""></script>
+  <script src="js/colormap.js"></script>
+  <script src="js/interpolation.js"></script>
+  <script src="js/koppen.js"></script>
+  <script src="js/ndvi.js"></script>
+  <script src="js/rangeslider.js"></script>
+  <script src="js/details.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
